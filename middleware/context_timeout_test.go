@@ -89,7 +89,7 @@ func TestContextTimeoutErrorOutInHandler(t *testing.T) {
 
 func TestContextTimeoutSuccessfulRequest(t *testing.T) {
 	t.Parallel()
-	m := TimeoutWithConfig(TimeoutConfig{
+	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
 		// Timeout has to be defined or the whole flow for timeout middleware will be skipped
 		Timeout: 50 * time.Millisecond,
 	})
@@ -109,35 +109,6 @@ func TestContextTimeoutSuccessfulRequest(t *testing.T) {
 	assert.Equal(t, "{\"data\":\"ok\"}\n", rec.Body.String())
 }
 
-func TestContextTimeoutOnTimeoutRouteErrorHandler(t *testing.T) {
-	t.Parallel()
-
-	actualErrChan := make(chan error, 1)
-	m := TimeoutWithConfig(TimeoutConfig{
-		Timeout: 1 * time.Millisecond,
-		OnTimeoutRouteErrorHandler: func(err error, c echo.Context) {
-			actualErrChan <- err
-		},
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-
-	e := echo.New()
-	c := e.NewContext(req, rec)
-
-	stopChan := make(chan struct{})
-	err := m(func(c echo.Context) error {
-		<-stopChan
-		return errors.New("error in route after timeout")
-	})(c)
-	stopChan <- struct{}{}
-	assert.NoError(t, err)
-
-	actualErr := <-actualErrChan
-	assert.EqualError(t, actualErr, "error in route after timeout")
-}
-
 func TestContextTimeoutTestRequestClone(t *testing.T) {
 	t.Parallel()
 	req := httptest.NewRequest(http.MethodPost, "/uri?query=value", strings.NewReader(url.Values{"form": {"value"}}.Encode()))
@@ -145,7 +116,7 @@ func TestContextTimeoutTestRequestClone(t *testing.T) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
 
-	m := TimeoutWithConfig(TimeoutConfig{
+	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
 		// Timeout has to be defined or the whole flow for timeout middleware will be skipped
 		Timeout: 1 * time.Second,
 	})
@@ -179,7 +150,7 @@ func TestContextTimeoutRecoversPanic(t *testing.T) {
 	t.Parallel()
 	e := echo.New()
 	e.Use(Recover()) // recover middleware will handler our panic
-	e.Use(TimeoutWithConfig(TimeoutConfig{
+	e.Use(ContextTimeoutWithConfig(ContextTimeoutConfig{
 		Timeout: 50 * time.Millisecond,
 	}))
 
