@@ -258,9 +258,9 @@ func TestContextTimeoutCanHandleContextDeadlineOnNextHandler(t *testing.T) {
 	t.Parallel()
 
 	timeout := 1 * time.Millisecond
-	m := TimeoutWithConfig(TimeoutConfig{
-		Timeout:      timeout,
-		ErrorMessage: "Timeout! change me",
+	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
+		Timeout: timeout,
+		//ErrorMessage: "Timeout! change me",
 	})
 
 	handlerFinishedExecution := make(chan bool)
