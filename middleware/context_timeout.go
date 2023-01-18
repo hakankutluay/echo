@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"errors"
+	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -39,6 +40,10 @@ type ContextTimeoutConfig struct {
 	// Skipper defines a function to skip middleware.
 	Skipper Skipper
 
+	// ErrorMessage is written to response on timeout in addition to http.StatusServiceUnavailable (503) status code
+	// It can be used to define a custom timeout error message
+	ErrorMessage string
+
 	// Timeout configures a timeout for the middleware, defaults to 0 for no timeout
 	// NOTE: when difference between timeout duration and handler execution time is almost the same (in range of 100microseconds)
 	// the result of timeout does not seem to be reliable - could respond timeout, could respond handler output
@@ -49,8 +54,9 @@ type ContextTimeoutConfig struct {
 var (
 	// DefaultContextTimeoutConfig is the default ContextTimeoutConfig middleware config.
 	DefaultContextTimeoutConfig = ContextTimeoutConfig{
-		Skipper: DefaultSkipper,
-		Timeout: 0,
+		Skipper:      DefaultSkipper,
+		Timeout:      0,
+		ErrorMessage: "",
 	}
 )
 
@@ -69,6 +75,12 @@ func ContextTimeoutWithConfig(config ContextTimeoutConfig) echo.MiddlewareFunc {
 func (config ContextTimeoutConfig) ToMiddleware() echo.MiddlewareFunc {
 	if config.Skipper == nil {
 		config.Skipper = DefaultTimeoutConfig.Skipper
+	}
+
+	timeoutErr := echo.ErrServiceUnavailable
+
+	if config.ErrorMessage != "" {
+		timeoutErr = echo.NewHTTPError(http.StatusServiceUnavailable, config.ErrorMessage)
 	}
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -93,7 +105,7 @@ func (config ContextTimeoutConfig) ToMiddleware() echo.MiddlewareFunc {
 			if err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
 					c.Logger().Error("http: Handler timeout")
-					return echo.ErrServiceUnavailable
+					return timeoutErr
 				}
 
 				return err
