@@ -62,7 +62,7 @@ func TestContextTimeoutWithTimeout0(t *testing.T) {
 
 func TestContextTimeoutErrorOutInHandler(t *testing.T) {
 	t.Parallel()
-	m := TimeoutWithConfig(TimeoutConfig{
+	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
 		// Timeout has to be defined or the whole flow for timeout middleware will be skipped
 		Timeout: 50 * time.Millisecond,
 	})
@@ -422,4 +422,18 @@ func TestContextTimeoutWithFullEchoStack(t *testing.T) {
 			}
 		})
 	}
+}
+
+func sleepWithContext(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+
+	select {
+	case <-ctx.Done():
+		if !timer.Stop() {
+			<-timer.C
+		}
+		return context.DeadlineExceeded
+	case <-timer.C:
+	}
+	return nil
 }
