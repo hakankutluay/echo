@@ -47,7 +47,7 @@ type ContextTimeoutConfig struct {
 }
 
 var (
-	// DefaultTimeoutConfig is the default ContextTimeout middleware config.
+	// DefaultContextTimeoutConfig is the default ContextTimeoutConfig middleware config.
 	DefaultContextTimeoutConfig = ContextTimeoutConfig{
 		Skipper: DefaultSkipper,
 		Timeout: 0,
