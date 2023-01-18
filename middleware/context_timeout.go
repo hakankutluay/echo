@@ -84,7 +84,13 @@ func (config ContextTimeoutConfig) ToMiddleware() echo.MiddlewareFunc {
 
 			c.SetRequest(timeoutRequest)
 
-			if err := next(c); err != nil {
+			err := next(c)
+
+			if err == nil {
+				err = c.Request().Context().Err()
+			}
+
+			if err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
 					return echo.ErrServiceUnavailable
 				}
