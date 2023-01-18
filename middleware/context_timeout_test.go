@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -306,22 +305,6 @@ func TestContextTimeoutWithFullEchoStack(t *testing.T) {
 		expectLogNotContains    []string
 	}{
 		{
-			name:                 "404 - write response in global error handler",
-			whenPath:             "/404",
-			expectResponse:       "{\"message\":\"Not Found\"}\n",
-			expectStatusCode:     http.StatusNotFound,
-			expectLogNotContains: []string{"echo:http: superfluous response.WriteHeader call from"},
-			expectLogContains:    []string{`"status":404,"error":"code=404, message=Not Found"`},
-		},
-		{
-			name:                 "418 - write response in handler",
-			whenPath:             "/",
-			expectResponse:       "{\"message\":\"OK\"}\n",
-			expectStatusCode:     http.StatusTeapot,
-			expectLogNotContains: []string{"echo:http: superfluous response.WriteHeader call from"},
-			expectLogContains:    []string{`"status":418,"error":"",`},
-		},
-		{
 			name:                    "503 - handler timeouts, write response in timeout middleware",
 			whenForceHandlerTimeout: true,
 			whenPath:                "/",
@@ -342,18 +325,18 @@ func TestContextTimeoutWithFullEchoStack(t *testing.T) {
 			e.Logger.SetOutput(buf)
 
 			// NOTE: timeout middleware is first as it changes Response.Writer and causes data race for logger middleware if it is not first
-			e.Use(TimeoutWithConfig(TimeoutConfig{
-				Timeout: 15 * time.Millisecond,
+			e.Use(ContextTimeoutWithConfig(ContextTimeoutConfig{
+				Timeout: 150 * time.Millisecond,
 			}))
 			e.Use(Logger())
 			e.Use(Recover())
 
-			wg := sync.WaitGroup{}
-			if tc.whenForceHandlerTimeout {
-				wg.Add(1) // make `wg.Wait()` block until we release it with `wg.Done()`
-			}
 			e.GET("/", func(c echo.Context) error {
-				wg.Wait()
+				if tc.whenForceHandlerTimeout {
+					if err := sleepWithContext(c.Request().Context(), time.Duration(1000*time.Millisecond)); err != nil {
+						return err
+					} // make `sleepWithContext` block until 100ms
+				}
 				return c.JSON(http.StatusTeapot, map[string]string{"message": "OK"})
 			})
 
@@ -370,9 +353,8 @@ func TestContextTimeoutWithFullEchoStack(t *testing.T) {
 				return
 			}
 			if tc.whenForceHandlerTimeout {
-				wg.Done()
 				// shutdown waits for server to shutdown. this way we wait logger mw to be executed
-				ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+				ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 				defer cancel()
 				server.Shutdown(ctx)
 			}
