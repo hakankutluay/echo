@@ -278,7 +278,7 @@ func TestContextTimeoutCanHandleContextDeadlineOnNextHandler(t *testing.T) {
 		// difference over 500microseconds (0.5millisecond) response seems to be reliable
 		<-stopChan
 
-		// The Request Context should have a Deadline set by http.TimeoutHandler
+		// The Request Context should have a Deadline set by http.ContextTimeoutHandler
 		if _, ok := c.Request().Context().Deadline(); !ok {
 			assert.Fail(t, "No timeout set on Request Context")
 		}
