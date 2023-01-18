@@ -305,6 +305,22 @@ func TestContextTimeoutWithFullEchoStack(t *testing.T) {
 		expectLogNotContains    []string
 	}{
 		{
+			name:                 "404 - write response in global error handler",
+			whenPath:             "/404",
+			expectResponse:       "{\"message\":\"Not Found\"}\n",
+			expectStatusCode:     http.StatusNotFound,
+			expectLogNotContains: []string{"echo:http: superfluous response.WriteHeader call from"},
+			expectLogContains:    []string{`"status":404,"error":"code=404, message=Not Found"`},
+		},
+		{
+			name:                 "418 - write response in handler",
+			whenPath:             "/",
+			expectResponse:       "{\"message\":\"OK\"}\n",
+			expectStatusCode:     http.StatusTeapot,
+			expectLogNotContains: []string{"echo:http: superfluous response.WriteHeader call from"},
+			expectLogContains:    []string{`"status":418,"error":"",`},
+		},
+		{
 			name:                    "503 - handler timeouts, write response in timeout middleware",
 			whenForceHandlerTimeout: true,
 			whenPath:                "/",
@@ -324,11 +340,11 @@ func TestContextTimeoutWithFullEchoStack(t *testing.T) {
 			buf := new(coroutineSafeBuffer)
 			e.Logger.SetOutput(buf)
 
-			// NOTE: timeout middleware is first as it changes Response.Writer and causes data race for logger middleware if it is not first
+			e.Use(Logger())
+			// NOTE: timeout middleware is last after recover beacuse timeout middleware will change the response error as 503
 			e.Use(ContextTimeoutWithConfig(ContextTimeoutConfig{
 				Timeout: 150 * time.Millisecond,
 			}))
-			//e.Use(Logger())
 			e.Use(Recover())
 
 			e.GET("/", func(c echo.Context) error {

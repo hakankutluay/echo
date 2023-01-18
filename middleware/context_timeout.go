@@ -92,7 +92,7 @@ func (config ContextTimeoutConfig) ToMiddleware() echo.MiddlewareFunc {
 
 			if err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
-					c.Logger().Info("http: Handler timeout")
+					c.Logger().Error("http: Handler timeout")
 					return echo.ErrServiceUnavailable
 				}
 
