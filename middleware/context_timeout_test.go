@@ -343,13 +343,13 @@ func TestContextTimeoutWithFullEchoStack(t *testing.T) {
 			e.Use(Logger())
 			// NOTE: timeout middleware is last after recover beacuse timeout middleware will change the response error as 503
 			e.Use(ContextTimeoutWithConfig(ContextTimeoutConfig{
-				Timeout: 150 * time.Millisecond,
+				Timeout: 15 * time.Millisecond,
 			}))
 			e.Use(Recover())
 
 			e.GET("/", func(c echo.Context) error {
 				if tc.whenForceHandlerTimeout {
-					if err := sleepWithContext(c.Request().Context(), time.Duration(1000*time.Millisecond)); err != nil {
+					if err := sleepWithContext(c.Request().Context(), time.Duration(100*time.Millisecond)); err != nil {
 						return err
 					} // make `sleepWithContext` block until 100ms
 				}
@@ -370,7 +370,7 @@ func TestContextTimeoutWithFullEchoStack(t *testing.T) {
 			}
 			if tc.whenForceHandlerTimeout {
 				// shutdown waits for server to shutdown. this way we wait logger mw to be executed
-				ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+				ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 				defer cancel()
 				server.Shutdown(ctx)
 			}
