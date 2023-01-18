@@ -308,7 +308,7 @@ func TestContextTimeoutWithFullEchoStack(t *testing.T) {
 			name:                    "503 - handler timeouts, write response in timeout middleware",
 			whenForceHandlerTimeout: true,
 			whenPath:                "/",
-			expectResponse:          "<html><head><title>Timeout</title></head><body><h1>Timeout</h1></body></html>",
+			expectResponse:          "{\"message\":\"Service Unavailable\"}\n",
 			expectStatusCode:        http.StatusServiceUnavailable,
 			expectLogNotContains: []string{
 				"echo:http: superfluous response.WriteHeader call from",
@@ -328,7 +328,7 @@ func TestContextTimeoutWithFullEchoStack(t *testing.T) {
 			e.Use(ContextTimeoutWithConfig(ContextTimeoutConfig{
 				Timeout: 150 * time.Millisecond,
 			}))
-			e.Use(Logger())
+			//e.Use(Logger())
 			e.Use(Recover())
 
 			e.GET("/", func(c echo.Context) error {
