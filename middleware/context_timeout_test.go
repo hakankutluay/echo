@@ -169,7 +169,7 @@ func TestContextTimeoutDataRace(t *testing.T) {
 	t.Parallel()
 
 	timeout := 1 * time.Millisecond
-	m := TimeoutWithConfig(TimeoutConfig{
+	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
 		Timeout:      timeout,
 		ErrorMessage: "Timeout! change me",
 	})
@@ -181,10 +181,10 @@ func TestContextTimeoutDataRace(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	err := m(func(c echo.Context) error {
-		// NOTE: when difference between timeout duration and handler execution time is almost the same (in range of 100microseconds)
-		// the result of timeout does not seem to be reliable - could respond timeout, could respond handler output
-		// difference over 500microseconds (0.5millisecond) response seems to be reliable
-		time.Sleep(timeout) // timeout and handler execution time difference is close to zero
+
+		if err := sleepWithContext(c.Request().Context(), timeout); err != nil {
+			return err
+		}
 		return c.String(http.StatusOK, "Hello, World!")
 	})(c)
 
