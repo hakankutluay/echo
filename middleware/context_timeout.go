@@ -62,7 +62,8 @@ func (config ContextTimeoutConfig) ToMiddleware() echo.MiddlewareFunc {
 		config.Skipper = DefaultTimeoutConfig.Skipper
 	}
 
-	message := http.StatusText(http.StatusServiceUnavailable)
+	var message interface{}
+	message = echo.Map{"message": http.StatusText(http.StatusServiceUnavailable)}
 
 	if config.ErrorMessage != "" {
 		message = config.ErrorMessage
