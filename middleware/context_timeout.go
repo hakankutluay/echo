@@ -83,7 +83,7 @@ func (config ContextTimeoutConfig) ToMiddleware() echo.MiddlewareFunc {
 				err = c.Request().Context().Err()
 			}
 
-			if err != nil {
+			if err != nil && !c.Response().Committed {
 				if errors.Is(err, context.DeadlineExceeded) {
 					c.Logger().Error("http: Handler timeout")
 					if config.ErrorMessage == "" {
