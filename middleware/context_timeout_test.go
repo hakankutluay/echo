@@ -17,7 +17,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// OK
 func TestContextTimeoutSkipper(t *testing.T) {
 	t.Parallel()
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
@@ -42,7 +41,6 @@ func TestContextTimeoutSkipper(t *testing.T) {
 	assert.EqualError(t, err, "response from handler")
 }
 
-// OK
 func TestContextTimeoutWithTimeout0(t *testing.T) {
 	t.Parallel()
 	m := ContextTimeout()
@@ -61,7 +59,6 @@ func TestContextTimeoutWithTimeout0(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// OK
 func TestContextTimeoutErrorOutInHandler(t *testing.T) {
 	t.Parallel()
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
@@ -89,7 +86,6 @@ func TestContextTimeoutErrorOutInHandler(t *testing.T) {
 	assert.Equal(t, "", rec.Body.String())
 }
 
-// OK
 func TestContextTimeoutSuccessfulRequest(t *testing.T) {
 	t.Parallel()
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
@@ -112,7 +108,6 @@ func TestContextTimeoutSuccessfulRequest(t *testing.T) {
 	assert.Equal(t, "{\"data\":\"ok\"}\n", rec.Body.String())
 }
 
-// OK
 func TestContextTimeoutTestRequestClone(t *testing.T) {
 	t.Parallel()
 	req := httptest.NewRequest(http.MethodPost, "/uri?query=value", strings.NewReader(url.Values{"form": {"value"}}.Encode()))
@@ -150,7 +145,6 @@ func TestContextTimeoutTestRequestClone(t *testing.T) {
 
 }
 
-// OK
 func TestContextTimeoutRecoversPanic(t *testing.T) {
 	t.Parallel()
 	e := echo.New()
@@ -171,7 +165,6 @@ func TestContextTimeoutRecoversPanic(t *testing.T) {
 	})
 }
 
-// ERROR
 func TestContextTimeoutDataRace(t *testing.T) {
 	t.Parallel()
 
@@ -204,7 +197,6 @@ func TestContextTimeoutDataRace(t *testing.T) {
 	}
 }
 
-// OK
 func TestContextTimeoutWithErrorMessage(t *testing.T) {
 	t.Parallel()
 
@@ -239,7 +231,7 @@ func TestContextTimeoutWithDefaultErrorMessage(t *testing.T) {
 	t.Parallel()
 
 	timeout := 1 * time.Millisecond
-	m := TimeoutWithConfig(TimeoutConfig{
+	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
 		Timeout:      timeout,
 		ErrorMessage: "",
 	})
@@ -250,16 +242,16 @@ func TestContextTimeoutWithDefaultErrorMessage(t *testing.T) {
 	e := echo.New()
 	c := e.NewContext(req, rec)
 
-	stopChan := make(chan struct{})
 	err := m(func(c echo.Context) error {
-		<-stopChan
+		if err := sleepWithContext(c.Request().Context(), time.Duration(2*time.Millisecond)); err != nil {
+			return err
+		}
 		return c.String(http.StatusOK, "Hello, World!")
 	})(c)
-	stopChan <- struct{}{}
 
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
-	assert.Equal(t, `<html><head><title>Timeout</title></head><body><h1>Timeout</h1></body></html>`, rec.Body.String())
+	assert.Equal(t, "{\"message\":\"Service Unavailable\"}\n", rec.Body.String())
 }
 
 func TestContextTimeoutCanHandleContextDeadlineOnNextHandler(t *testing.T) {
@@ -267,11 +259,9 @@ func TestContextTimeoutCanHandleContextDeadlineOnNextHandler(t *testing.T) {
 
 	timeout := 1 * time.Millisecond
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
-		Timeout: timeout,
-		//ErrorMessage: "Timeout! change me",
+		Timeout:      timeout,
+		ErrorMessage: "Timeout! change me",
 	})
-
-	handlerFinishedExecution := make(chan bool)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
@@ -279,29 +269,26 @@ func TestContextTimeoutCanHandleContextDeadlineOnNextHandler(t *testing.T) {
 	e := echo.New()
 	c := e.NewContext(req, rec)
 
-	stopChan := make(chan struct{})
 	err := m(func(c echo.Context) error {
 		// NOTE: when difference between timeout duration and handler execution time is almost the same (in range of 100microseconds)
 		// the result of timeout does not seem to be reliable - could respond timeout, could respond handler output
 		// difference over 500microseconds (0.5millisecond) response seems to be reliable
-		<-stopChan
+		if err := sleepWithContext(c.Request().Context(), time.Duration(2*time.Millisecond)); err != nil {
+			return err
+		}
 
 		// The Request Context should have a Deadline set by http.ContextTimeoutHandler
 		if _, ok := c.Request().Context().Deadline(); !ok {
 			assert.Fail(t, "No timeout set on Request Context")
 		}
-		handlerFinishedExecution <- c.Request().Context().Err() == nil
 		return c.String(http.StatusOK, "Hello, World!")
 	})(c)
-	stopChan <- struct{}{}
 
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
 	assert.Equal(t, "Timeout! change me", rec.Body.String())
-	assert.False(t, <-handlerFinishedExecution)
 }
 
-// OK
 func TestContextTimeoutWithFullEchoStack(t *testing.T) {
 	// test timeout with full http server stack running, do see what http.Server.ErrorLog contains
 	var testCases = []struct {
