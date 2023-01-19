@@ -61,6 +61,7 @@ func TestContextTimeoutWithTimeout0(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// OK
 func TestContextTimeoutErrorOutInHandler(t *testing.T) {
 	t.Parallel()
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
@@ -88,6 +89,7 @@ func TestContextTimeoutErrorOutInHandler(t *testing.T) {
 	assert.Equal(t, "", rec.Body.String())
 }
 
+// OK
 func TestContextTimeoutSuccessfulRequest(t *testing.T) {
 	t.Parallel()
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
@@ -110,6 +112,7 @@ func TestContextTimeoutSuccessfulRequest(t *testing.T) {
 	assert.Equal(t, "{\"data\":\"ok\"}\n", rec.Body.String())
 }
 
+// OK
 func TestContextTimeoutTestRequestClone(t *testing.T) {
 	t.Parallel()
 	req := httptest.NewRequest(http.MethodPost, "/uri?query=value", strings.NewReader(url.Values{"form": {"value"}}.Encode()))
@@ -144,9 +147,9 @@ func TestContextTimeoutTestRequestClone(t *testing.T) {
 	})(c)
 
 	assert.NoError(t, err)
-
 }
 
+// OK
 func TestContextTimeoutRecoversPanic(t *testing.T) {
 	t.Parallel()
 	e := echo.New()
@@ -167,6 +170,7 @@ func TestContextTimeoutRecoversPanic(t *testing.T) {
 	})
 }
 
+// OK
 func TestContextTimeoutDataRace(t *testing.T) {
 	t.Parallel()
 
