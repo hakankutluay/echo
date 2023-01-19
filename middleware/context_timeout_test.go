@@ -201,7 +201,7 @@ func TestContextTimeoutWithErrorMessage(t *testing.T) {
 	t.Parallel()
 
 	timeout := 1 * time.Millisecond
-	m := TimeoutWithConfig(TimeoutConfig{
+	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
 		Timeout:      timeout,
 		ErrorMessage: "Timeout! change me",
 	})
@@ -212,15 +212,15 @@ func TestContextTimeoutWithErrorMessage(t *testing.T) {
 	e := echo.New()
 	c := e.NewContext(req, rec)
 
-	stopChan := make(chan struct{})
 	err := m(func(c echo.Context) error {
 		// NOTE: when difference between timeout duration and handler execution time is almost the same (in range of 100microseconds)
 		// the result of timeout does not seem to be reliable - could respond timeout, could respond handler output
 		// difference over 500microseconds (0.5millisecond) response seems to be reliable
-		<-stopChan
+		if err := sleepWithContext(c.Request().Context(), time.Duration(2*time.Millisecond)); err != nil {
+			return err
+		}
 		return c.String(http.StatusOK, "Hello, World!")
 	})(c)
-	stopChan <- struct{}{}
 
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
@@ -258,9 +258,9 @@ func TestContextTimeoutCanHandleContextDeadlineOnNextHandler(t *testing.T) {
 	t.Parallel()
 
 	timeout := 1 * time.Millisecond
-	m := TimeoutWithConfig(TimeoutConfig{
-		Timeout:      timeout,
-		ErrorMessage: "Timeout! change me",
+	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
+		Timeout: timeout,
+		//ErrorMessage: "Timeout! change me",
 	})
 
 	handlerFinishedExecution := make(chan bool)
