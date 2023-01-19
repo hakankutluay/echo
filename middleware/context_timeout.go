@@ -79,11 +79,14 @@ func (config ContextTimeoutConfig) ToMiddleware() echo.MiddlewareFunc {
 			c.SetRequest(c.Request().WithContext(timeoutContext))
 
 			err := next(c)
-			if err != nil && config.ErrorHandler != nil {
-				return config.ErrorHandler(err, c)
+			if err != nil {
+				if config.ErrorHandler != nil {
+					return config.ErrorHandler(err, c)
+				} else {
+					return DefaultContextTimeoutErrorHandler(err, c)
+				}
 			}
-			return err
-
+			return nil
 		}
 	}
 }
