@@ -222,7 +222,7 @@ func TestContextTimeoutWithErrorMessage(t *testing.T) {
 		return c.String(http.StatusOK, "Hello, World!")
 	})(c)
 
-	assert.Empty(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
 	assert.Equal(t, "Timeout! change me", rec.Body.String())
 }
