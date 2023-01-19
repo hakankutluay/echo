@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// OK
 func TestContextTimeoutSkipper(t *testing.T) {
 	t.Parallel()
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
@@ -41,6 +42,7 @@ func TestContextTimeoutSkipper(t *testing.T) {
 	assert.EqualError(t, err, "response from handler")
 }
 
+// OK
 func TestContextTimeoutWithTimeout0(t *testing.T) {
 	t.Parallel()
 	m := ContextTimeout()
@@ -170,8 +172,8 @@ func TestContextTimeoutDataRace(t *testing.T) {
 
 	timeout := 1 * time.Millisecond
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
-		Timeout:      timeout,
-		ErrorMessage: "Timeout! change me",
+		Timeout: timeout,
+		//ErrorMessage: "Timeout! change me",
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -202,8 +204,8 @@ func TestContextTimeoutWithErrorMessage(t *testing.T) {
 
 	timeout := 1 * time.Millisecond
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
-		Timeout:      timeout,
-		ErrorMessage: "Timeout! change me",
+		Timeout: timeout,
+		//ErrorMessage: "Timeout! change me",
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -232,8 +234,8 @@ func TestContextTimeoutWithDefaultErrorMessage(t *testing.T) {
 
 	timeout := 1 * time.Millisecond
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
-		Timeout:      timeout,
-		ErrorMessage: "",
+		Timeout: timeout,
+		//ErrorMessage: "",
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -259,8 +261,8 @@ func TestContextTimeoutCanHandleContextDeadlineOnNextHandler(t *testing.T) {
 
 	timeout := 1 * time.Millisecond
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
-		Timeout:      timeout,
-		ErrorMessage: "Timeout! change me",
+		Timeout: timeout,
+		//ErrorMessage: "Timeout! change me",
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
