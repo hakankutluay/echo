@@ -69,7 +69,7 @@ func ContextTimeoutWithConfig(config ContextTimeoutConfig) echo.MiddlewareFunc {
 func (config ContextTimeoutConfig) ToMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			if config.Skipper(c) || config.Timeout == 0 {
+			if (config.Skipper != nil && config.Skipper(c)) || config.Timeout == 0 {
 				return next(c)
 			}
 
