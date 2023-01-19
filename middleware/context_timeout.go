@@ -62,11 +62,7 @@ func (config ContextTimeoutConfig) ToMiddleware() echo.MiddlewareFunc {
 		config.Skipper = DefaultTimeoutConfig.Skipper
 	}
 
-	message := http.StatusText(http.StatusServiceUnavailable)
-
-	if config.ErrorMessage != "" {
-		message = config.ErrorMessage
-	}
+	suResponse := echo.Map{"message": http.StatusText(http.StatusServiceUnavailable)}
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -90,7 +86,11 @@ func (config ContextTimeoutConfig) ToMiddleware() echo.MiddlewareFunc {
 			if err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
 					c.Logger().Error("http: Handler timeout")
-					return c.JSON(http.StatusServiceUnavailable, echo.Map{"message": message})
+					if config.ErrorMessage == "" {
+						return c.JSON(http.StatusServiceUnavailable, suResponse)
+					} else {
+						return c.String(http.StatusServiceUnavailable, config.ErrorMessage)
+					}
 				}
 
 				return err
