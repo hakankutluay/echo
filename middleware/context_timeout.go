@@ -10,7 +10,7 @@ import (
 )
 
 // Simply return or wrap the error that context passed method returns.
-// Note: Works with only context timeout. Does not works with kong running processes without context.
+// Note: Injects ContextWithTimeout to c.Request().Context(). Does not work with kong running processes without context.
 //
 // e.GET("/", func(c echo.Context) error {
 // 	sleepTime := time.Duration(2 * time.Second)
