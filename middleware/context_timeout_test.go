@@ -17,7 +17,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// OK
 func TestContextTimeoutSkipper(t *testing.T) {
 	t.Parallel()
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
@@ -42,7 +41,6 @@ func TestContextTimeoutSkipper(t *testing.T) {
 	assert.EqualError(t, err, "response from handler")
 }
 
-// OK
 func TestContextTimeoutWithTimeout0(t *testing.T) {
 	t.Parallel()
 	m := ContextTimeout()
@@ -61,7 +59,6 @@ func TestContextTimeoutWithTimeout0(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// OK
 func TestContextTimeoutErrorOutInHandler(t *testing.T) {
 	t.Parallel()
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
@@ -89,7 +86,6 @@ func TestContextTimeoutErrorOutInHandler(t *testing.T) {
 	assert.Equal(t, "", rec.Body.String())
 }
 
-// OK
 func TestContextTimeoutSuccessfulRequest(t *testing.T) {
 	t.Parallel()
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
@@ -112,7 +108,6 @@ func TestContextTimeoutSuccessfulRequest(t *testing.T) {
 	assert.Equal(t, "{\"data\":\"ok\"}\n", rec.Body.String())
 }
 
-// OK
 func TestContextTimeoutTestRequestClone(t *testing.T) {
 	t.Parallel()
 	req := httptest.NewRequest(http.MethodPost, "/uri?query=value", strings.NewReader(url.Values{"form": {"value"}}.Encode()))
@@ -149,7 +144,6 @@ func TestContextTimeoutTestRequestClone(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// OK
 func TestContextTimeoutRecoversPanic(t *testing.T) {
 	t.Parallel()
 	e := echo.New()
@@ -170,7 +164,6 @@ func TestContextTimeoutRecoversPanic(t *testing.T) {
 	})
 }
 
-// OK
 func TestContextTimeoutDataRace(t *testing.T) {
 	t.Parallel()
 
@@ -206,10 +199,23 @@ func TestContextTimeoutDataRace(t *testing.T) {
 func TestContextTimeoutWithErrorMessage(t *testing.T) {
 	t.Parallel()
 
+	timeoutErrorHandler := func(err error, c echo.Context) error {
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return &echo.HTTPError{
+					Code:    http.StatusServiceUnavailable,
+					Message: "Timeout! change me",
+				}
+			}
+			return err
+		}
+		return nil
+	}
+
 	timeout := 1 * time.Millisecond
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
-		Timeout: timeout,
-		//ErrorMessage: "Timeout! change me",
+		Timeout:      timeout,
+		ErrorHandler: timeoutErrorHandler,
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -228,9 +234,10 @@ func TestContextTimeoutWithErrorMessage(t *testing.T) {
 		return c.String(http.StatusOK, "Hello, World!")
 	})(c)
 
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
-	assert.Equal(t, "Timeout! change me", rec.Body.String())
+	assert.IsType(t, &echo.HTTPError{}, err)
+	assert.Error(t, err)
+	assert.Equal(t, http.StatusServiceUnavailable, err.(*echo.HTTPError).Code)
+	assert.Equal(t, "Timeout! change me", err.(*echo.HTTPError).Message)
 }
 
 func TestContextTimeoutWithDefaultErrorMessage(t *testing.T) {
@@ -239,7 +246,6 @@ func TestContextTimeoutWithDefaultErrorMessage(t *testing.T) {
 	timeout := 1 * time.Millisecond
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
 		Timeout: timeout,
-		//ErrorMessage: "",
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -255,18 +261,32 @@ func TestContextTimeoutWithDefaultErrorMessage(t *testing.T) {
 		return c.String(http.StatusOK, "Hello, World!")
 	})(c)
 
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
-	assert.Equal(t, "{\"message\":\"Service Unavailable\"}\n", rec.Body.String())
+	assert.IsType(t, &echo.HTTPError{}, err)
+	assert.Error(t, err)
+	assert.Equal(t, http.StatusServiceUnavailable, err.(*echo.HTTPError).Code)
+	assert.Equal(t, "Service Unavailable", err.(*echo.HTTPError).Message)
 }
 
 func TestContextTimeoutCanHandleContextDeadlineOnNextHandler(t *testing.T) {
 	t.Parallel()
 
+	timeoutErrorHandler := func(err error, c echo.Context) error {
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return &echo.HTTPError{
+					Code:    http.StatusServiceUnavailable,
+					Message: "Timeout! change me",
+				}
+			}
+			return err
+		}
+		return nil
+	}
+
 	timeout := 1 * time.Millisecond
 	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
-		Timeout: timeout,
-		//ErrorMessage: "Timeout! change me",
+		Timeout:      timeout,
+		ErrorHandler: timeoutErrorHandler,
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -290,9 +310,10 @@ func TestContextTimeoutCanHandleContextDeadlineOnNextHandler(t *testing.T) {
 		return c.String(http.StatusOK, "Hello, World!")
 	})(c)
 
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
-	assert.Equal(t, "Timeout! change me", rec.Body.String())
+	assert.IsType(t, &echo.HTTPError{}, err)
+	assert.Error(t, err)
+	assert.Equal(t, http.StatusServiceUnavailable, err.(*echo.HTTPError).Code)
+	assert.Equal(t, "Timeout! change me", err.(*echo.HTTPError).Message)
 }
 
 func TestContextTimeoutWithFullEchoStack(t *testing.T) {
@@ -331,7 +352,7 @@ func TestContextTimeoutWithFullEchoStack(t *testing.T) {
 			expectLogNotContains: []string{
 				"echo:http: superfluous response.WriteHeader call from",
 			},
-			expectLogContains: []string{"http: Handler timeout"},
+			expectLogContains: []string{"Service Unavailable"},
 		},
 	}
 
