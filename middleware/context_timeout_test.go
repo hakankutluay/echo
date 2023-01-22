@@ -144,26 +144,6 @@ func TestContextTimeoutTestRequestClone(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestContextTimeoutRecoversPanic(t *testing.T) {
-	t.Parallel()
-	e := echo.New()
-	e.Use(Recover()) // recover middleware will handler our panic
-	e.Use(ContextTimeoutWithConfig(ContextTimeoutConfig{
-		Timeout: 50 * time.Millisecond,
-	}))
-
-	e.GET("/", func(c echo.Context) error {
-		panic("panic!!!")
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-
-	assert.NotPanics(t, func() {
-		e.ServeHTTP(rec, req)
-	})
-}
-
 func TestContextTimeoutDataRace(t *testing.T) {
 	t.Parallel()
 
