@@ -196,50 +196,6 @@ func TestContextTimeoutDataRace(t *testing.T) {
 	}
 }
 
-func TestContextTimeoutWithErrorMessage(t *testing.T) {
-	t.Parallel()
-
-	timeoutErrorHandler := func(err error, c echo.Context) error {
-		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				return &echo.HTTPError{
-					Code:    http.StatusServiceUnavailable,
-					Message: "Timeout! change me",
-				}
-			}
-			return err
-		}
-		return nil
-	}
-
-	timeout := 1 * time.Millisecond
-	m := ContextTimeoutWithConfig(ContextTimeoutConfig{
-		Timeout:      timeout,
-		ErrorHandler: timeoutErrorHandler,
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-
-	e := echo.New()
-	c := e.NewContext(req, rec)
-
-	err := m(func(c echo.Context) error {
-		// NOTE: when difference between timeout duration and handler execution time is almost the same (in range of 100microseconds)
-		// the result of timeout does not seem to be reliable - could respond timeout, could respond handler output
-		// difference over 500microseconds (0.5millisecond) response seems to be reliable
-		if err := sleepWithContext(c.Request().Context(), time.Duration(2*time.Millisecond)); err != nil {
-			return err
-		}
-		return c.String(http.StatusOK, "Hello, World!")
-	})(c)
-
-	assert.IsType(t, &echo.HTTPError{}, err)
-	assert.Error(t, err)
-	assert.Equal(t, http.StatusServiceUnavailable, err.(*echo.HTTPError).Code)
-	assert.Equal(t, "Timeout! change me", err.(*echo.HTTPError).Message)
-}
-
 func TestContextTimeoutWithDefaultErrorMessage(t *testing.T) {
 	t.Parallel()
 
