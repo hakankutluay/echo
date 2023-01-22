@@ -8,20 +8,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// Simply return or wrap the error that context passed method returns.
-// Note: Injects ContextWithTimeout to c.Request().Context(). Does not work with kong running processes without context.
-//
-// e.GET("/", func(c echo.Context) error {
-// 	sleepTime := time.Duration(2 * time.Second)
-//
-// 	if err := sleepWithContext(c.Request().Context(), sleepTime); err != nil {
-// 		return fmt.Errorf("%w: execution error", err)
-// 	}
-//
-// 	return c.String(http.StatusOK, "Hello, World!")
-// })
-//
-
 // ContextTimeoutConfig defines the config for ContextTimeout middleware.
 type ContextTimeoutConfig struct {
 	// Skipper defines a function to skip middleware.
