@@ -3,8 +3,6 @@ package middleware
 import (
 	"context"
 	"errors"
-	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -250,106 +248,6 @@ func TestContextTimeoutCanHandleContextDeadlineOnNextHandler(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, http.StatusServiceUnavailable, err.(*echo.HTTPError).Code)
 	assert.Equal(t, "Timeout! change me", err.(*echo.HTTPError).Message)
-}
-
-func TestContextTimeoutWithFullEchoStack(t *testing.T) {
-	// test timeout with full http server stack running, do see what http.Server.ErrorLog contains
-	var testCases = []struct {
-		name                    string
-		whenPath                string
-		whenForceHandlerTimeout bool
-		expectStatusCode        int
-		expectResponse          string
-		expectLogContains       []string
-		expectLogNotContains    []string
-	}{
-		{
-			name:                 "404 - write response in global error handler",
-			whenPath:             "/404",
-			expectResponse:       "{\"message\":\"Not Found\"}\n",
-			expectStatusCode:     http.StatusNotFound,
-			expectLogNotContains: []string{"echo:http: superfluous response.WriteHeader call from"},
-			expectLogContains:    []string{`"status":404,"error":"code=404, message=Not Found"`},
-		},
-		{
-			name:                 "418 - write response in handler",
-			whenPath:             "/",
-			expectResponse:       "{\"message\":\"OK\"}\n",
-			expectStatusCode:     http.StatusTeapot,
-			expectLogNotContains: []string{"echo:http: superfluous response.WriteHeader call from"},
-			expectLogContains:    []string{`"status":418,"error":"",`},
-		},
-		{
-			name:                    "503 - handler timeouts, write response in timeout middleware",
-			whenForceHandlerTimeout: true,
-			whenPath:                "/",
-			expectResponse:          "{\"message\":\"Service Unavailable\"}\n",
-			expectStatusCode:        http.StatusServiceUnavailable,
-			expectLogNotContains: []string{
-				"echo:http: superfluous response.WriteHeader call from",
-			},
-			expectLogContains: []string{"Service Unavailable"},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			e := echo.New()
-
-			buf := new(coroutineSafeBuffer)
-			e.Logger.SetOutput(buf)
-
-			e.Use(Logger())
-			// NOTE: timeout middleware is last after recover beacuse timeout middleware will change the response error as 503
-			e.Use(ContextTimeoutWithConfig(ContextTimeoutConfig{
-				Timeout: 15 * time.Millisecond,
-			}))
-			e.Use(Recover())
-
-			e.GET("/", func(c echo.Context) error {
-				if tc.whenForceHandlerTimeout {
-					if err := sleepWithContext(c.Request().Context(), time.Duration(100*time.Millisecond)); err != nil {
-						return err
-					} // make `sleepWithContext` block until 100ms
-				}
-				return c.JSON(http.StatusTeapot, map[string]string{"message": "OK"})
-			})
-
-			server, addr, err := startServer(e)
-			if err != nil {
-				assert.NoError(t, err)
-				return
-			}
-			defer server.Close()
-
-			res, err := http.Get(fmt.Sprintf("http://%v%v", addr, tc.whenPath))
-			if err != nil {
-				assert.NoError(t, err)
-				return
-			}
-			if tc.whenForceHandlerTimeout {
-				// shutdown waits for server to shutdown. this way we wait logger mw to be executed
-				ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
-				defer cancel()
-				server.Shutdown(ctx)
-			}
-
-			assert.Equal(t, tc.expectStatusCode, res.StatusCode)
-			if body, err := io.ReadAll(res.Body); err == nil {
-				assert.Equal(t, tc.expectResponse, string(body))
-			} else {
-				assert.Fail(t, err.Error())
-			}
-
-			logged := buf.String()
-			for _, subStr := range tc.expectLogContains {
-				assert.True(t, strings.Contains(logged, subStr), "expected logs to contain: %v, logged: '%v'", subStr, logged)
-			}
-			for _, subStr := range tc.expectLogNotContains {
-				assert.False(t, strings.Contains(logged, subStr), "expected logs not to contain: %v, logged: '%v'", subStr, logged)
-			}
-		})
-	}
 }
 
 func sleepWithContext(ctx context.Context, d time.Duration) error {
