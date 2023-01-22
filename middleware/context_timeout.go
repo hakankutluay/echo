@@ -46,14 +46,30 @@ func ContextTimeout(timeout time.Duration) echo.MiddlewareFunc {
 
 // ContextTimeoutWithConfig returns a Timeout middleware with config.
 func ContextTimeoutWithConfig(config ContextTimeoutConfig) echo.MiddlewareFunc {
-	return config.ToMiddleware()
+	mw, err := config.ToMiddleware()
+	if err != nil {
+		panic(err)
+	}
+	return mw
 }
 
 // ToMiddleware converts Config to middleware.
-func (config ContextTimeoutConfig) ToMiddleware() echo.MiddlewareFunc {
+func (config ContextTimeoutConfig) ToMiddleware() (echo.MiddlewareFunc, error) {
+	if config.Skipper == nil {
+		config.Skipper = DefaultSkipper
+	}
+	if config.ErrorHandler == nil {
+		config.ErrorHandler = func(err error, c echo.Context) error {
+			if err != nil && errors.Is(err, context.DeadlineExceeded) {
+				return echo.ErrServiceUnavailable.WithInternal(err)
+			}
+			return err
+		}
+	}
+
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			if (config.Skipper != nil && config.Skipper(c)) || config.Timeout == 0 {
+			if (config.Skipper(c)) || config.Timeout == 0 {
 				return next(c)
 			}
 
@@ -62,15 +78,12 @@ func (config ContextTimeoutConfig) ToMiddleware() echo.MiddlewareFunc {
 
 			c.SetRequest(c.Request().WithContext(timeoutContext))
 
-			err := next(c)
-			if err != nil {
+			if err := next(c); err != nil {
 				if config.ErrorHandler != nil {
 					return config.ErrorHandler(err, c)
-				} else {
-					return DefaultContextTimeoutErrorHandler(err, c)
 				}
 			}
 			return nil
 		}
-	}
+	}, nil
 }
