@@ -31,19 +31,17 @@ var (
 		}
 		return nil
 	}
-
-	// DefaultContextTimeoutConfig is the default ContextTimeoutConfig middleware config.
-	DefaultContextTimeoutConfig = ContextTimeoutConfig{
-		Skipper:      DefaultSkipper,
-		Timeout:      0,
-		ErrorHandler: DefaultContextTimeoutErrorHandler,
-	}
 )
 
 // ContextTimeout returns a middleware which returns error (503 Service Unavailable error) to client
 // when underlying method returns context.DeadlineExceeded error.
-func ContextTimeout() echo.MiddlewareFunc {
-	return ContextTimeoutWithConfig(DefaultContextTimeoutConfig)
+func ContextTimeout(timeout time.Duration) echo.MiddlewareFunc {
+	config := ContextTimeoutConfig{
+		Skipper:      DefaultSkipper,
+		ErrorHandler: DefaultContextTimeoutErrorHandler,
+		Timeout:      timeout,
+	}
+	return ContextTimeoutWithConfig(config)
 }
 
 // ContextTimeoutWithConfig returns a Timeout middleware with config.

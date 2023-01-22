@@ -43,7 +43,7 @@ func TestContextTimeoutSkipper(t *testing.T) {
 
 func TestContextTimeoutWithTimeout0(t *testing.T) {
 	t.Parallel()
-	m := ContextTimeout()
+	m := ContextTimeout(time.Duration(0))
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
